@@ -1,12 +1,13 @@
 import axios from "axios";
 import dotenv from "dotenv";
+import cron from "node-cron"; // Import node-cron
 import connectDB from "../config/databaseConnection.js";
 import CVE from "../models/cveModel.js";
 import axiosRetry from "axios-retry";
 dotenv.config();
 
 const BASE_NVD_API = process.env.NVD_API_URL;
-const RESULTS_PER_PAGE = 1;
+const RESULTS_PER_PAGE = 1000;
 
 // Configure axios retry
 axiosRetry(axios, {
@@ -73,20 +74,24 @@ const syncCVEData = async () => {
     }
 
     console.log("CVE data synchronization completed.");
-    mongoose.connection.close();
-    process.exit(0);
   } catch (error) {
     console.error("Error while syncing CVE data:", error.message);
     console.error("Detailed Error:", error);
-
-    process.exit(1);
   }
 };
 
+// Start Sync Process
 const startSync = async () => {
-  // Connect to MongoDB
   await connectDB();
   await syncCVEData();
 };
 
+// Schedule Cron Job
+cron.schedule("0 0 * * *", async () => {
+  console.log("Cron Job: Starting CVE Data Sync...");
+  await startSync();
+  console.log("Cron Job: CVE Data Sync Completed.");
+});
+
+// Initial Run
 startSync();
